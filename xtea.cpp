@@ -6,7 +6,7 @@
 #include <stdlib.h>
 using namespace std;
 
-unsigned int key[4]={0xACB6,0x1344,0xEC90,0x285C};  /* Chose a password in hex   */
+unsigned int key[4]={0xBAD9,0x69CA,0x8EED,0xFC97};  /* Chose a password in hex   */
 #define BLOCK_SIZE 8                               /* Make sure you change both */
                                                   /* xtea.cpp and stub.cpp     */
 /*
