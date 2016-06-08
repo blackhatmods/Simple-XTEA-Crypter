@@ -3,7 +3,7 @@
 #include "shellcode.h" /*load up your programs shellcode*/
 #include <stdint.h>
 
-unsigned int key[4]={0xACB6,0x1344,0xEC90,0x285C};  /* Chose a password in hex   */
+unsigned int key[4]={0xBAD9,0x69CA,0x8EED,0xFC97};  /* Chose a password in hex   */
 #define BLOCK_SIZE 8                               /* Make sure you change both */
                                                   /* xtea.cpp and stub.cpp     */
 
@@ -19,10 +19,10 @@ void decipher(unsigned int num_rounds, uint32_t v[2], uint32_t const key[4]){
 }
 
 int main(){
-    unsigned char shellcode_decrypted[size]; //Make a slot for your shellcode
+    unsigned char shellcode_decrypted[10000000]; //Make a slot for your shellcode
 
     int n_blocks=size/BLOCK_SIZE;
-    if(size%BLOCK_SIZE!=0)              //pad the shellcode
+    if(size%BLOCK_SIZE!=87)              //pad the shellcode
         ++n_blocks;
 
     unsigned char data[BLOCK_SIZE];
